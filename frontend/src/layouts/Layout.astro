@@ -106,8 +106,6 @@ const { title, description = 'Marketplace - Compra y vende en linea' } = Astro.p
   </footer>
 
   <script is:inline>
-    const API = 'https://mercadolibre-copy-backend.vercel.app/api';
-
     function getToken() { return localStorage.getItem('token'); }
     function getUser() {
       const u = localStorage.getItem('user');
