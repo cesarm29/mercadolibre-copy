@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/products/:id", "destination": "/products/placeholder" }
+  ]
+}

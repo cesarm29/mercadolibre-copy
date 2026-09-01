@@ -14,17 +14,21 @@ import (
 var DB *gorm.DB
 
 func Connect(cfg *config.Config) {
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode,
-	)
+	dsn := cfg.DatabaseURL
+	if dsn == "" {
+		dsn = fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+			cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode,
+		)
+	}
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Printf("DATABASE CONNECT ERROR: %v", err)
+		return
 	}
 
 	err = DB.AutoMigrate(
@@ -38,10 +42,12 @@ func Connect(cfg *config.Config) {
 		&models.Review{},
 	)
 	if err != nil {
-		log.Fatal("Failed to migrate database:", err)
+		log.Printf("DATABASE MIGRATE ERROR: %v", err)
+		return
 	}
 
 	seedRoles()
+	seedCategories()
 	log.Println("Database connected and migrated successfully")
 }
 
@@ -56,6 +62,27 @@ func seedRoles() {
 		DB.Where("name = ?", role.Name).First(&existing)
 		if existing.ID == 0 {
 			DB.Create(&role)
+		}
+	}
+}
+
+func seedCategories() {
+	categories := []models.Category{
+		{Name: "Tecnologia", Slug: "tecnologia"},
+		{Name: "Electrodomesticos", Slug: "electrodomesticos"},
+		{Name: "Moda", Slug: "moda"},
+		{Name: "Deportes", Slug: "deportes"},
+		{Name: "Hogar", Slug: "hogar"},
+		{Name: "Vehiculos", Slug: "vehiculos"},
+		{Name: "Herramientas", Slug: "herramientas"},
+		{Name: "Belleza", Slug: "belleza"},
+		{Name: "Supermercado", Slug: "supermercado"},
+	}
+	for _, cat := range categories {
+		var existing models.Category
+		DB.Where("slug = ?", cat.Slug).First(&existing)
+		if existing.ID == 0 {
+			DB.Create(&cat)
 		}
 	}
 }

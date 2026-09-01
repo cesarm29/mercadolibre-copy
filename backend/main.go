@@ -2,9 +2,11 @@ package main
 
 import (
 	"log"
+	"net/http"
+
 	"marketplace/config"
 	"marketplace/database"
-	"marketplace/routes"
+	"marketplace/serverutil"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,23 +23,15 @@ func main() {
 	cfg := config.Load()
 	database.Connect(cfg)
 
-	r := gin.Default()
-
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
-
-	routes.Setup(r)
+	_ = gin.Mode()
+	handler := serverutil.NewHandler()
 
 	log.Printf("Server starting on port %s", cfg.ServerPort)
-	if err := r.Run(":" + cfg.ServerPort); err != nil {
+	srv := &http.Server{
+		Addr:    ":" + cfg.ServerPort,
+		Handler: handler,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

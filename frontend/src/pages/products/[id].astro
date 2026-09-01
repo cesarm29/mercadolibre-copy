@@ -1,5 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+
+export function getStaticPaths() {
+  return [{ params: { id: 'placeholder' } }];
+}
+
+const { id } = Astro.params;
 ---
 <Layout title="Producto - Marketplace">
   <div id="productDetail" class="product-detail">
@@ -39,7 +45,7 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script is:inline>
-  const API = 'https://your-go-api.vercel.app/api';
+  const API = 'https://mercadolibre-copy-backend.vercel.app/api';
 
   async function loadProduct() {
     const id = window.location.pathname.split('/').pop();

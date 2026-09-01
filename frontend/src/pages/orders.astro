@@ -1,5 +1,5 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="Mis compras - Marketplace">
   <h1>Mis compras</h1>
@@ -36,7 +36,7 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script is:inline>
-  const API = 'https://your-go-api.vercel.app/api';
+  const API = 'https://mercadolibre-copy-backend.vercel.app/api';
 
   async function loadOrders() {
     const token = localStorage.getItem('token');
