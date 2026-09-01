@@ -1,0 +1,116 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Vender producto - Marketplace">
+  <div class="sell-page">
+    <h1>Vender producto</h1>
+    <div id="sellMsg" class="alert alert-error" style="display:none;"></div>
+    <form id="sellForm" class="sell-form">
+      <div class="form-group">
+        <label class="form-label">Titulo del producto *</label>
+        <input type="text" id="title" class="form-input" placeholder="Ej: iPhone 15 Pro Max 256GB" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripcion</label>
+        <textarea id="description" class="form-input" rows="4" placeholder="Describe tu producto..."></textarea>
+      </div>
+      <div class="sell-row">
+        <div class="form-group">
+          <label class="form-label">Precio *</label>
+          <input type="number" id="price" class="form-input" min="0" step="1" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock *</label>
+          <input type="number" id="stock" class="form-input" min="0" value="1" required />
+        </div>
+      </div>
+      <div class="sell-row">
+        <div class="form-group">
+          <label class="form-label">Categoria *</label>
+          <select id="category_id" class="form-select" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Condicion *</label>
+          <select id="condition" class="form-select" required>
+            <option value="new">Nuevo</option>
+            <option value="used">Usado</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ubicacion</label>
+        <input type="text" id="location" class="form-input" placeholder="Ciudad, region" />
+      </div>
+      <div class="form-group">
+        <label class="filter-option"><input type="checkbox" id="freeShipping"> Envio gratis</label>
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%;" id="submitBtn">Publicar producto</button>
+    </form>
+  </div>
+</Layout>
+
+<style>
+  .sell-page { max-width: 600px; margin: 0 auto; }
+  .sell-page h1 { font-size: 22px; margin-bottom: 16px; }
+  .sell-form { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .sell-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 480px) { .sell-row { grid-template-columns: 1fr; } }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadCategories() {
+    try {
+      const res = await fetch(API + '/categories');
+      if (res.ok) {
+        const cats = await res.json();
+        const select = document.getElementById('category_id');
+        select.innerHTML = '<option value="">Seleccionar categoria</option>' +
+          cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById('sellForm').addEventListener('submit', async(e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+    const btn = document.getElementById('submitBtn');
+    const msg = document.getElementById('sellMsg');
+    btn.disabled = true;
+    btn.textContent = 'Publicando...';
+    msg.style.display = 'none';
+
+    try {
+      const res = await fetch(API + '/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          title: document.getElementById('title').value,
+          description: document.getElementById('description').value,
+          price: parseFloat(document.getElementById('price').value),
+          stock: parseInt(document.getElementById('stock').value),
+          category_id: parseInt(document.getElementById('category_id').value),
+          condition: document.getElementById('condition').value,
+          location: document.getElementById('location').value,
+          free_shipping: document.getElementById('freeShipping').checked
+        })
+      });
+      if (res.ok) {
+        window.location.href = '/products/mine';
+      } else {
+        const data = await res.json();
+        msg.textContent = data.error || 'Error al publicar';
+        msg.style.display = 'block';
+      }
+    } catch(e) {
+      msg.textContent = 'Error de conexion';
+      msg.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Publicar producto';
+  });
+
+  document.addEventListener('DOMContentLoaded', loadCategories);
+</script>

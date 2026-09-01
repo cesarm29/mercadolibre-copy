@@ -1,0 +1,143 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Mi carrito - Marketplace">
+  <div class="cart-page">
+    <h1>Mi carrito</h1>
+    <div id="cartContent" class="cart-content">
+      <p class="loading">Cargando carrito...</p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .cart-page h1 { font-size: 22px; margin-bottom: 16px; }
+  .cart-content { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+  .cart-items { display: flex; flex-direction: column; gap: 12px; }
+  .cart-item { display: flex; gap: 16px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); align-items: center; }
+  .cart-item-img { width: 80px; height: 80px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #ccc; flex-shrink: 0; }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .cart-item-title { font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cart-item-price { font-size: 16px; }
+  .cart-item-actions { display: flex; align-items: center; gap: 8px; }
+  .qty-input { width: 50px; padding: 6px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+  .remove-btn { color: #3483fa; font-size: 13px; cursor: pointer; background: none; border: none; }
+  .remove-btn:hover { color: #2968c8; text-decoration: underline; }
+
+  .cart-summary { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: fit-content; position: sticky; top: 80px; }
+  .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+  .summary-total { border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px; font-size: 18px; font-weight: 600; }
+  .shipping-form { margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px; }
+  .empty-cart { text-align: center; padding: 40px; background: white; border-radius: 8px; }
+  .empty-cart h2 { font-size: 18px; margin-bottom: 8px; }
+  .empty-cart p { color: #999; margin-bottom: 16px; }
+  .loading { text-align: center; padding: 40px; color: #999; grid-column: 1 / -1; }
+
+  @media (max-width: 768px) {
+    .cart-content { grid-template-columns: 1fr; }
+    .cart-item { flex-wrap: wrap; }
+  }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadCart() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+
+    try {
+      const res = await fetch(API + '/cart', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (data.items.length === 0) {
+        document.getElementById('cartContent').innerHTML = `
+          <div class="empty-cart">
+            <h2>Tu carrito esta vacio</h2>
+            <p>Agrega productos para continuar</p>
+            <a href="/products" class="btn-primary">Explorar productos</a>
+          </div>`;
+        return;
+      }
+
+      document.getElementById('cartContent').innerHTML = `
+        <div class="cart-items">
+          ${data.items.map(item => `
+            <div class="cart-item" id="item-${item.id}">
+              <div class="cart-item-img">${item.product?.images?.[0] ? '<img src="'+item.product.images[0]+'" style="width:100%;height:100%;object-fit:cover;" alt="">' : '📦'}</div>
+              <div class="cart-item-info">
+                <div class="cart-item-title">${item.product?.title || 'Producto'}</div>
+                <div class="cart-item-price">$ ${(item.product?.price * item.quantity).toLocaleString('es-CL')}</div>
+                ${item.product?.free_shipping ? '<div style="color:#00a650;font-size:12px;">Envio gratis</div>' : ''}
+              </div>
+              <div class="cart-item-actions">
+                <input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="updateQty(${item.id}, this.value)" />
+                <button class="remove-btn" onclick="removeItem(${item.id})">Eliminar</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="cart-summary">
+          <h3>Resumen de compra</h3>
+          <div class="summary-row"><span>Productos (${data.count})</span><span>$ ${data.total.toLocaleString('es-CL')}</span></div>
+          <div class="summary-row"><span>Envio</span><span style="color:#00a650;">Gratis</span></div>
+          <div class="summary-row summary-total"><span>Total</span><span>$ ${data.total.toLocaleString('es-CL')}</span></div>
+          <div class="shipping-form">
+            <div class="form-group">
+              <label class="form-label">Direccion de envio</label>
+              <textarea id="shippingAddress" class="form-input" rows="3" placeholder="Calle, numero, ciudad..." required></textarea>
+            </div>
+            <button class="btn-buy" style="width:100%;background:#3483fa;color:white;border:none;padding:14px;border-radius:6px;font-size:16px;cursor:pointer;" onclick="checkout()">Comprar</button>
+          </div>
+        </div>
+      `;
+    } catch(e) {
+      document.getElementById('cartContent').innerHTML = '<p class="loading">Error al cargar carrito</p>';
+    }
+  }
+
+  async function updateQty(itemId, qty) {
+    const token = localStorage.getItem('token');
+    await fetch(API + '/cart/' + itemId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ quantity: parseInt(qty) })
+    });
+    loadCart();
+  }
+
+  async function removeItem(itemId) {
+    const token = localStorage.getItem('token');
+    await fetch(API + '/cart/' + itemId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    loadCart();
+  }
+
+  async function checkout() {
+    const token = localStorage.getItem('token');
+    const address = document.getElementById('shippingAddress')?.value;
+    if (!address) { alert('Ingresa una direccion de envio'); return; }
+
+    try {
+      const res = await fetch(API + '/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ shipping_address: address })
+      });
+      if (res.ok) {
+        alert('Compra realizada con exito!');
+        window.location.href = '/orders';
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Error al procesar la compra');
+      }
+    } catch(e) { alert('Error de conexion'); }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadCart);
+</script>

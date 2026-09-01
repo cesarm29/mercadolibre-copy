@@ -1,0 +1,269 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Marketplace - Compra y vende en linea' } = Astro.props;
+---
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <title>{title}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">
+        <span class="logo-icon">M</span>
+        <span class="logo-text">Marketplace</span>
+      </a>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Buscar productos, marcas y mas..." class="search-input" />
+        <button class="search-btn" onclick="window.location.href='/products?search=' + document.getElementById('searchInput').value">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+      </div>
+      <nav class="nav-links">
+        <a href="/products" class="nav-link">Explorar</a>
+        <div id="authLinks" class="auth-links">
+          <a href="/auth/login" class="nav-link">Iniciar sesion</a>
+          <a href="/auth/register" class="btn-primary-sm">Crear cuenta</a>
+        </div>
+        <div id="userLinks" class="user-links" style="display:none;">
+          <a href="/cart" class="cart-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            <span id="cartCount" class="cart-count" style="display:none;">0</span>
+          </a>
+          <div class="user-menu" id="userMenu">
+            <button class="user-btn" onclick="toggleUserMenu()">
+              <span id="userName">Mi cuenta</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu">
+              <a href="/dashboard" class="dropdown-item">Mi cuenta</a>
+              <a href="/products/mine" class="dropdown-item">Mis publicaciones</a>
+              <a href="/orders" class="dropdown-item">Mis compras</a>
+              <button class="dropdown-item" onclick="logout()">Cerrar sesion</button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobileMenu" style="display:none;">
+      <a href="/products" class="mobile-link">Explorar</a>
+      <div id="mobileAuthLinks">
+        <a href="/auth/login" class="mobile-link">Iniciar sesion</a>
+        <a href="/auth/register" class="mobile-link">Crear cuenta</a>
+      </div>
+      <div id="mobileUserLinks" style="display:none;">
+        <a href="/cart" class="mobile-link">Mi carrito</a>
+        <a href="/dashboard" class="mobile-link">Mi cuenta</a>
+        <a href="/products/mine" class="mobile-link">Mis publicaciones</a>
+        <a href="/orders" class="mobile-link">Mis compras</a>
+        <button class="mobile-link" onclick="logout()">Cerrar sesion</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <slot />
+  </main>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Acerca de</h4>
+          <a href="#">Trabaja con nosotros</a>
+          <a href="#">Terminos y condiciones</a>
+          <a href="#">Privacidad</a>
+        </div>
+        <div class="footer-col">
+          <h4>Redes sociales</h4>
+          <a href="#">Twitter</a>
+          <a href="#">Facebook</a>
+          <a href="#">Instagram</a>
+        </div>
+        <div class="footer-col">
+          <h4>Mi cuenta</h4>
+          <a href="/auth/login">Iniciar sesion</a>
+          <a href="/auth/register">Crear cuenta</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>Copyright 2026 - Marketplace</p>
+      </div>
+    </div>
+  </footer>
+
+  <script is:inline>
+    const API = 'https://your-go-api.vercel.app/api';
+
+    function getToken() { return localStorage.getItem('token'); }
+    function getUser() {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    }
+
+    function checkAuth() {
+      const token = getToken();
+      const user = getUser();
+      if (token && user) {
+        document.getElementById('authLinks').style.display = 'none';
+        document.getElementById('userLinks').style.display = 'flex';
+        document.getElementById('mobileAuthLinks').style.display = 'none';
+        document.getElementById('mobileUserLinks').style.display = 'block';
+        document.getElementById('userName').textContent = user.name;
+        loadCartCount();
+      }
+    }
+
+    async function loadCartCount() {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const res = await fetch(API + '/cart', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const badge = document.getElementById('cartCount');
+          if (data.count > 0) {
+            badge.textContent = data.count;
+            badge.style.display = 'flex';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      } catch(e) {}
+    }
+
+    function toggleUserMenu() {
+      document.getElementById('dropdownMenu').classList.toggle('show');
+    }
+
+    function toggleMobileMenu() {
+      const m = document.getElementById('mobileMenu');
+      m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+
+    document.addEventListener('DOMContentLoaded', checkAuth);
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.user-menu')) {
+        const d = document.getElementById('dropdownMenu');
+        if (d) d.classList.remove('show');
+      }
+    });
+  </script>
+
+  <style is:global>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+    a { text-decoration: none; color: inherit; }
+
+    .header { background: #ffe600; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .header-container { max-width: 1200px; margin: 0 auto; padding: 8px 16px; display: flex; align-items: center; gap: 16px; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 20px; color: #333; white-space: nowrap; }
+    .logo-icon { background: #3483fa; color: white; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { display: none; }
+
+    .search-bar { flex: 1; display: flex; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .search-input { flex: 1; border: none; padding: 10px 16px; font-size: 14px; outline: none; min-width: 0; }
+    .search-btn { background: none; border: none; padding: 10px 16px; cursor: pointer; color: #999; }
+    .search-btn:hover { color: #3483fa; }
+
+    .nav-links { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+    .nav-link { font-size: 13px; color: #333; padding: 6px 8px; border-radius: 4px; }
+    .nav-link:hover { background: rgba(0,0,0,0.05); }
+    .btn-primary-sm { background: #3483fa; color: white; padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 500; }
+    .btn-primary-sm:hover { background: #2968c8; }
+
+    .auth-links, .user-links { display: flex; align-items: center; gap: 8px; }
+    .cart-link { position: relative; padding: 6px; }
+    .cart-count { position: absolute; top: -2px; right: -4px; background: #3483fa; color: white; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    .user-menu { position: relative; }
+    .user-btn { background: none; border: none; display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; padding: 6px 8px; border-radius: 4px; }
+    .user-btn:hover { background: rgba(0,0,0,0.05); }
+    .dropdown-menu { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 200px; padding: 8px 0; z-index: 200; }
+    .dropdown-menu.show { display: block; }
+    .dropdown-item { display: block; padding: 10px 16px; font-size: 14px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; color: #333; }
+    .dropdown-item:hover { background: #f5f5f5; }
+
+    .mobile-menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+    .mobile-menu { display: none; background: white; border-top: 1px solid #eee; padding: 8px 0; }
+    .mobile-link { display: block; padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; }
+    .mobile-link:hover { background: #f5f5f5; }
+
+    .main { flex: 1; max-width: 1200px; margin: 0 auto; padding: 16px; width: 100%; }
+
+    .footer { background: #2d3277; color: white; margin-top: auto; }
+    .footer-container { max-width: 1200px; margin: 0 auto; padding: 32px 16px; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .footer-col h4 { font-size: 14px; margin-bottom: 12px; opacity: 0.8; }
+    .footer-col a { display: block; font-size: 13px; margin-bottom: 8px; opacity: 0.6; }
+    .footer-col a:hover { opacity: 1; }
+    .footer-bottom { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; opacity: 0.5; }
+
+    .btn-primary { background: #3483fa; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-primary:hover { background: #2968c8; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: white; color: #3483fa; border: 1px solid #3483fa; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .btn-secondary:hover { background: #f0f7ff; }
+    .btn-danger { background: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: #333; }
+    .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-input:focus { outline: none; border-color: #3483fa; box-shadow: 0 0 0 2px rgba(52,131,250,0.2); }
+    .form-select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; }
+
+    .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; transition: box-shadow 0.2s; }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
+    .alert-error { background: #ffeaea; color: #cc0000; border: 1px solid #ffcccc; }
+    .alert-success { background: #eafff0; color: #00862b; border: 1px solid #b3f5c0; }
+
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-new { background: #e1f5ff; color: #3483fa; }
+    .badge-used { background: #fff3e0; color: #e67e22; }
+    .badge-pending { background: #fff8e1; color: #f5a623; }
+    .badge-shipped { background: #e1f5ff; color: #3483fa; }
+    .badge-delivered { background: #eafff0; color: #00862b; }
+    .badge-cancelled { background: #ffeaea; color: #cc0000; }
+
+    .price { font-size: 24px; font-weight: 400; color: #333; }
+    .price-prefix { font-size: 14px; color: #999; }
+    .price-old { font-size: 14px; color: #999; text-decoration: line-through; margin-left: 8px; }
+
+    .free-shipping { color: #00a650; font-size: 12px; font-weight: 500; }
+
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 768px) {
+      .logo-text { display: none; }
+      .nav-links { display: none; }
+      .mobile-menu-btn { display: block; }
+      .search-bar { max-width: 100%; }
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</body>
+</html>

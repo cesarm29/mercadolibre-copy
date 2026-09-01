@@ -1,0 +1,102 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Mi cuenta - Marketplace">
+  <div class="dashboard">
+    <aside class="sidebar">
+      <h3>Mi cuenta</h3>
+      <a href="/dashboard" class="sidebar-link active">Perfil</a>
+      <a href="/products/mine" class="sidebar-link">Mis publicaciones</a>
+      <a href="/orders" class="sidebar-link">Mis compras</a>
+      <a href="/cart" class="sidebar-link">Mi carrito</a>
+      <button class="sidebar-link logout" onclick="localStorage.clear();window.location.href='/'">Cerrar sesion</button>
+    </aside>
+    <div class="dashboard-content">
+      <div class="profile-card">
+        <h2>Mi perfil</h2>
+        <div id="profileMsg" class="alert alert-success" style="display:none;"></div>
+        <form id="profileForm">
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input type="text" id="name" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="email" class="form-input" disabled />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefono</label>
+            <input type="tel" id="phone" class="form-input" />
+          </div>
+          <button type="submit" class="btn-primary">Guardar cambios</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .dashboard { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+  .sidebar { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: fit-content; }
+  .sidebar h3 { font-size: 16px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+  .sidebar-link { display: block; padding: 10px 12px; font-size: 14px; border-radius: 6px; margin-bottom: 4px; background: none; border: none; width: 100%; text-align: left; cursor: pointer; }
+  .sidebar-link:hover { background: #f5f5f5; }
+  .sidebar-link.active { background: #f0f7ff; color: #3483fa; }
+  .sidebar-link.logout { color: #cc0000; }
+  .dashboard-content { display: flex; flex-direction: column; gap: 16px; }
+  .profile-card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .profile-card h2 { font-size: 18px; margin-bottom: 16px; }
+
+  @media (max-width: 768px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .sidebar { display: flex; gap: 4px; overflow-x: auto; padding: 8px; }
+    .sidebar h3 { display: none; }
+    .sidebar-link { white-space: nowrap; padding: 8px 12px; }
+  }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadProfile() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+
+    try {
+      const res = await fetch(API + '/auth/profile', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error();
+      const user = await res.json();
+      document.getElementById('name').value = user.name || '';
+      document.getElementById('email').value = user.email || '';
+      document.getElementById('phone').value = user.phone || '';
+    } catch(e) {}
+  }
+
+  document.getElementById('profileForm').addEventListener('submit', async(e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const msg = document.getElementById('profileMsg');
+
+    try {
+      const res = await fetch(API + '/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          name: document.getElementById('name').value,
+          phone: document.getElementById('phone').value
+        })
+      });
+      if (res.ok) {
+        const user = await res.json();
+        localStorage.setItem('user', JSON.stringify(user));
+        msg.textContent = 'Perfil actualizado correctamente';
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+      }
+    } catch(e) {}
+  });
+
+  document.addEventListener('DOMContentLoaded', loadProfile);
+</script>

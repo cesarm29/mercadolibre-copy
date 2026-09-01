@@ -1,0 +1,111 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Producto - Marketplace">
+  <div id="productDetail" class="product-detail">
+    <p class="loading">Cargando producto...</p>
+  </div>
+</Layout>
+
+<style>
+  .product-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .product-images { position: relative; }
+  .main-image { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #ccc; }
+  .product-info { display: flex; flex-direction: column; gap: 16px; }
+  .condition-badge { font-size: 12px; color: #999; text-transform: uppercase; }
+  .product-title { font-size: 22px; font-weight: 400; line-height: 1.3; }
+  .product-main-price { font-size: 36px; font-weight: 400; }
+  .product-stock { color: #00a650; font-size: 14px; }
+  .product-stock.out { color: #999; }
+  .product-shipping-text { color: #00a650; font-size: 14px; font-weight: 500; }
+  .seller-info { padding: 16px 0; border-top: 1px solid #eee; }
+  .seller-info h4 { font-size: 14px; margin-bottom: 4px; }
+  .seller-info p { font-size: 13px; color: #999; }
+  .quantity-section { display: flex; align-items: center; gap: 12px; }
+  .quantity-input { width: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 14px; }
+  .buy-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .btn-buy { background: #3483fa; color: white; border: none; padding: 14px; border-radius: 6px; font-size: 16px; cursor: pointer; }
+  .btn-buy:hover { background: #2968c8; }
+  .btn-cart { background: white; color: #3483fa; border: 1px solid #3483fa; padding: 14px; border-radius: 6px; font-size: 16px; cursor: pointer; }
+  .btn-cart:hover { background: #f0f7ff; }
+  .description-section { margin-top: 32px; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .description-section h3 { font-size: 18px; margin-bottom: 12px; }
+  .description-section p { font-size: 14px; line-height: 1.6; color: #666; }
+  .loading { text-align: center; padding: 40px; color: #999; }
+
+  @media (max-width: 768px) {
+    .product-detail { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
+  }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadProduct() {
+    const id = window.location.pathname.split('/').pop();
+    try {
+      const res = await fetch(API + '/products/' + id);
+      if (!res.ok) throw new Error();
+      const p = await res.json();
+
+      document.title = p.title + ' - Marketplace';
+      document.getElementById('productDetail').innerHTML = `
+        <div class="product-images">
+          <div class="main-image">${p.images && p.images.length > 0 ? '<img src="'+p.images[0]+'" style="width:100%;height:100%;object-fit:contain;" alt="'+p.title+'">' : '📦'}</div>
+        </div>
+        <div class="product-info">
+          <span class="condition-badge">${p.condition === 'new' ? 'Nuevo' : 'Usado'}</span>
+          <h1 class="product-title">${p.title}</h1>
+          <div class="product-main-price">$ ${p.price.toLocaleString('es-CL')}</div>
+          ${p.free_shipping ? '<div class="product-shipping-text">Envio gratis</div>' : ''}
+          <div class="product-stock ${p.stock > 0 ? '' : 'out'}">${p.stock > 0 ? 'Stock disponible: '+p.stock+' unidades' : 'Sin stock'}</div>
+          <div class="quantity-section">
+            <label class="form-label">Cantidad:</label>
+            <input type="number" id="quantity" class="quantity-input" value="1" min="1" max="${p.stock}" />
+          </div>
+          <div class="buy-buttons">
+            <button class="btn-buy" onclick="buyNow(${p.id})" ${p.stock <= 0 ? 'disabled' : ''}>Comprar ahora</button>
+            <button class="btn-cart" onclick="addToCart(${p.id})" ${p.stock <= 0 ? 'disabled' : ''}>Agregar al carrito</button>
+          </div>
+          <div class="seller-info">
+            <h4>Vendedor: ${p.seller?.name || 'Vendedor'}</h4>
+            <p>${p.seller?.email || ''}</p>
+          </div>
+        </div>
+        <div class="description-section" style="grid-column:1/-1;">
+          <h3>Descripcion del producto</h3>
+          <p>${p.description || 'Sin descripcion'}</p>
+        </div>
+      `;
+    } catch(e) {
+      document.getElementById('productDetail').innerHTML = '<p class="loading">Producto no encontrado</p>';
+    }
+  }
+
+  async function addToCart(productId) {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+    const qty = parseInt(document.getElementById('quantity').value) || 1;
+    try {
+      const res = await fetch(API + '/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ product_id: productId, quantity: qty })
+      });
+      if (res.ok) {
+        alert('Agregado al carrito');
+        if (typeof loadCartCount === 'function') loadCartCount();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Error al agregar');
+      }
+    } catch(e) { alert('Error de conexion'); }
+  }
+
+  async function buyNow(productId) {
+    await addToCart(productId);
+    window.location.href = '/cart';
+  }
+
+  document.addEventListener('DOMContentLoaded', loadProduct);
+</script>

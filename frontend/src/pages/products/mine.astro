@@ -1,0 +1,81 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Mis publicaciones - Marketplace">
+  <div class="seller-page">
+    <div class="seller-header">
+      <h1>Mis publicaciones</h1>
+      <a href="/products/new" class="btn-primary">+ Nuevo producto</a>
+    </div>
+    <div id="productsList" class="products-list">
+      <p class="loading">Cargando productos...</p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .seller-page h1 { font-size: 22px; }
+  .seller-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .products-list { display: flex; flex-direction: column; gap: 12px; }
+  .product-row { display: flex; gap: 16px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); align-items: center; }
+  .product-row-img { width: 64px; height: 64px; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #ccc; flex-shrink: 0; }
+  .product-row-info { flex: 1; min-width: 0; }
+  .product-row-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product-row-meta { font-size: 12px; color: #999; margin-top: 2px; }
+  .product-row-price { font-size: 16px; white-space: nowrap; }
+  .product-row-actions { display: flex; gap: 8px; }
+  .btn-edit { padding: 6px 12px; font-size: 12px; background: #f5f5f5; border: none; border-radius: 4px; cursor: pointer; }
+  .btn-edit:hover { background: #e0e0e0; }
+  .loading, .empty-state { text-align: center; padding: 40px; color: #999; background: white; border-radius: 8px; }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadMyProducts() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+
+    try {
+      const res = await fetch(API + '/products/mine', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error();
+      const products = await res.json();
+
+      if (!products || products.length === 0) {
+        document.getElementById('productsList').innerHTML = '<div class="empty-state"><h2>No tienes publicaciones</h2><p>Crea tu primer producto para vender</p></div>';
+        return;
+      }
+
+      document.getElementById('productsList').innerHTML = products.map(p => `
+        <div class="product-row">
+          <div class="product-row-img">${p.images?.[0] ? '<img src="'+p.images[0]+'" style="width:100%;height:100%;object-fit:cover;">' : '📦'}</div>
+          <div class="product-row-info">
+            <div class="product-row-title">${p.title}</div>
+            <div class="product-row-meta">${p.category?.name || ''} · ${p.stock} en stock · ${p.sold_count} vendidos</div>
+          </div>
+          <div class="product-row-price">$ ${p.price.toLocaleString('es-CL')}</div>
+          <div class="product-row-actions">
+            <button class="btn-edit" onclick="toggleStatus(${p.id}, '${p.status}')">${p.status === 'active' ? 'Desactivar' : 'Activar'}</button>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {
+      document.getElementById('productsList').innerHTML = '<p class="loading">Error al cargar productos</p>';
+    }
+  }
+
+  async function toggleStatus(id, current) {
+    const token = localStorage.getItem('token');
+    const newStatus = current === 'active' ? 'inactive' : 'active';
+    await fetch(API + '/products/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ status: newStatus })
+    });
+    loadMyProducts();
+  }
+
+  document.addEventListener('DOMContentLoaded', loadMyProducts);
+</script>

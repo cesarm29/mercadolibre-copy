@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Mis compras - Marketplace">
+  <h1>Mis compras</h1>
+  <div id="ordersList" class="orders-list">
+    <p class="loading">Cargando ordenes...</p>
+  </div>
+</Layout>
+
+<style>
+  h1 { font-size: 22px; margin-bottom: 16px; }
+  .orders-list { display: flex; flex-direction: column; gap: 12px; }
+  .order-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .order-id { font-size: 13px; color: #999; }
+  .order-date { font-size: 13px; color: #999; }
+  .order-items { display: flex; flex-direction: column; gap: 8px; }
+  .order-item { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+  .order-item:last-child { border-bottom: none; }
+  .order-item-img { width: 48px; height: 48px; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+  .order-item-info { flex: 1; }
+  .order-item-name { font-size: 13px; }
+  .order-item-qty { font-size: 12px; color: #999; }
+  .order-item-price { font-size: 14px; }
+  .order-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; }
+  .order-total { font-size: 18px; font-weight: 600; }
+  .order-status { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  .status-pending { background: #fff8e1; color: #f5a623; }
+  .status-paid { background: #e1f5ff; color: #3483fa; }
+  .status-shipped { background: #e1f5ff; color: #3483fa; }
+  .status-delivered { background: #eafff0; color: #00862b; }
+  .status-cancelled { background: #ffeaea; color: #cc0000; }
+  .loading, .empty-state { text-align: center; padding: 40px; color: #999; background: white; border-radius: 8px; }
+  .empty-state h2 { margin-bottom: 8px; }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  async function loadOrders() {
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/auth/login'; return; }
+
+    try {
+      const res = await fetch(API + '/orders', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (!data.data || data.data.length === 0) {
+        document.getElementById('ordersList').innerHTML = '<div class="empty-state"><h2>No tienes compras aun</h2><p>Explora productos y realiza tu primera compra</p></div>';
+        return;
+      }
+
+      document.getElementById('ordersList').innerHTML = data.data.map(order => `
+        <div class="order-card">
+          <div class="order-header">
+            <div>
+              <span class="order-id">Orden #${order.id}</span>
+              <span class="order-date"> - ${new Date(order.created_at).toLocaleDateString('es-CL')}</span>
+            </div>
+            <span class="order-status status-${order.status}">${order.status}</span>
+          </div>
+          <div class="order-items">
+            ${(order.items || []).map(item => `
+              <div class="order-item">
+                <div class="order-item-img">📦</div>
+                <div class="order-item-info">
+                  <div class="order-item-name">${item.product?.title || 'Producto'}</div>
+                  <div class="order-item-qty">x${item.quantity}</div>
+                </div>
+                <div class="order-item-price">$ ${(item.price * item.quantity).toLocaleString('es-CL')}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="order-footer">
+            <span class="order-total">Total: $ ${order.total.toLocaleString('es-CL')}</span>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {
+      document.getElementById('ordersList').innerHTML = '<p class="loading">Error al cargar ordenes</p>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadOrders);
+</script>

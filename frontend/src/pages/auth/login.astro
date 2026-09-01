@@ -1,0 +1,69 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Iniciar sesion - Marketplace">
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Iniciar sesion</h1>
+      <div id="errorMsg" class="alert alert-error" style="display:none;"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="email" class="form-input" placeholder="Tu email" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contrasena</label>
+          <input type="password" id="password" class="form-input" placeholder="Tu contrasena" required />
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%;" id="submitBtn">Iniciar sesion</button>
+      </form>
+      <p class="auth-link">No tienes cuenta? <a href="/auth/register">Registrate</a></p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .auth-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
+  .auth-card { background: white; border-radius: 8px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .auth-card h1 { font-size: 24px; margin-bottom: 24px; text-align: center; }
+  .auth-link { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
+  .auth-link a { color: #3483fa; }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+
+  document.getElementById('loginForm').addEventListener('submit', async(e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const errEl = document.getElementById('errorMsg');
+    btn.disabled = true;
+    btn.textContent = 'Ingresando...';
+    errEl.style.display = 'none';
+
+    try {
+      const res = await fetch(API + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/';
+      } else {
+        errEl.textContent = data.error || 'Error al iniciar sesion';
+        errEl.style.display = 'block';
+      }
+    } catch(e) {
+      errEl.textContent = 'Error de conexion';
+      errEl.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Iniciar sesion';
+  });
+</script>

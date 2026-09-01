@@ -1,0 +1,151 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Productos - Marketplace">
+  <div class="products-page">
+    <aside class="filters-sidebar">
+      <h3>Filtros</h3>
+      <div class="filter-group">
+        <label class="form-label">Condicion</label>
+        <label class="filter-option"><input type="radio" name="condition" value=""> Todos</label>
+        <label class="filter-option"><input type="radio" name="condition" value="new"> Nuevo</label>
+        <label class="filter-option"><input type="radio" name="condition" value="used"> Usado</label>
+      </div>
+      <div class="filter-group">
+        <label class="form-label">Precio</label>
+        <input type="number" id="minPrice" placeholder="Minimo" class="form-input" />
+        <input type="number" id="maxPrice" placeholder="Maximo" class="form-input" style="margin-top:8px;" />
+      </div>
+      <div class="filter-group">
+        <label class="form-label">Envio</label>
+        <label class="filter-option"><input type="checkbox" id="freeShipping"> Envio gratis</label>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:16px;" onclick="applyFilters()">Aplicar filtros</button>
+    </aside>
+    <div class="products-content">
+      <div class="products-header">
+        <h1 id="pageTitle">Productos</h1>
+        <span id="resultCount" class="result-count"></span>
+        <select id="sortSelect" class="form-select" style="width:auto;margin-left:auto;" onchange="applyFilters()">
+          <option value="created_at">Mas recientes</option>
+          <option value="price">Precio</option>
+          <option value="sold_count">Mas vendidos</option>
+        </select>
+      </div>
+      <div class="products-grid" id="productsGrid"></div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .products-page { display: grid; grid-template-columns: 240px 1fr; gap: 20px; }
+  .filters-sidebar { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: fit-content; position: sticky; top: 80px; }
+  .filters-sidebar h3 { font-size: 16px; margin-bottom: 16px; }
+  .filter-group { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
+  .filter-option { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 0; cursor: pointer; }
+
+  .products-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .products-header h1 { font-size: 20px; }
+  .result-count { font-size: 13px; color: #999; }
+
+  .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .product-card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: box-shadow 0.2s; display: block; }
+  .product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .product-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 40px; }
+  .product-info { padding: 12px; }
+  .product-title { font-size: 13px; color: #333; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+  .product-price { font-size: 18px; color: #333; }
+  .product-shipping { color: #00a650; font-size: 11px; margin-top: 2px; }
+
+  .pagination { display: flex; justify-content: center; gap: 4px; margin-top: 24px; }
+  .page-btn { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; font-size: 13px; }
+  .page-btn.active { background: #3483fa; color: white; border-color: #3483fa; }
+  .page-btn:hover:not(.active) { background: #f5f5f5; }
+
+  .loading { text-align: center; padding: 40px; color: #999; grid-column: 1 / -1; }
+
+  @media (max-width: 768px) {
+    .products-page { grid-template-columns: 1fr; }
+    .filters-sidebar { position: static; display: none; }
+    .products-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .products-header { flex-wrap: wrap; }
+  }
+</style>
+
+<script is:inline>
+  const API = 'https://your-go-api.vercel.app/api';
+  let currentPage = 1;
+
+  async function loadProducts(page = 1) {
+    currentPage = page;
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', page);
+    params.set('limit', '20');
+
+    const sort = document.getElementById('sortSelect')?.value || 'created_at';
+    params.set('sort', sort);
+
+    const condition = document.querySelector('input[name="condition"]:checked')?.value;
+    if (condition) params.set('condition', condition);
+
+    const minP = document.getElementById('minPrice')?.value;
+    const maxP = document.getElementById('maxPrice')?.value;
+    if (minP) params.set('min_price', minP);
+    if (maxP) params.set('max_price', maxP);
+
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = '<p class="loading">Cargando...</p>';
+
+    try {
+      const res = await fetch(API + '/products?' + params.toString());
+      const data = await res.json();
+
+      document.getElementById('resultCount').textContent = data.total + ' resultados';
+      const search = params.get('search');
+      if (search) document.getElementById('pageTitle').textContent = 'Resultados para "' + search + '"';
+
+      if (!data.data || data.data.length === 0) {
+        grid.innerHTML = '<p class="loading">No se encontraron productos</p>';
+        return;
+      }
+
+      grid.innerHTML = data.data.map(p => `
+        <a href="/products/${p.id}" class="product-card">
+          <div class="product-img">${p.images && p.images.length > 0 ? '<img src="'+p.images[0]+'" style="width:100%;height:100%;object-fit:cover;" alt="'+p.title+'">' : '📦'}</div>
+          <div class="product-info">
+            <div class="product-title">${p.title}</div>
+            <div class="product-price">$ ${p.price.toLocaleString('es-CL')}</div>
+            ${p.free_shipping ? '<div class="product-shipping">Envio gratis</div>' : ''}
+          </div>
+        </a>
+      `).join('');
+
+      renderPagination(data.total_pages, data.page);
+    } catch(e) {
+      grid.innerHTML = '<p class="loading">Error al cargar productos</p>';
+    }
+  }
+
+  function renderPagination(totalPages, current) {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    if (current > 1) html += `<button class="page-btn" onclick="loadProducts(${current-1})">Anterior</button>`;
+    for (let i = Math.max(1, current-2); i <= Math.min(totalPages, current+2); i++) {
+      html += `<button class="page-btn ${i===current?'active':''}" onclick="loadProducts(${i})">${i}</button>`;
+    }
+    if (current < totalPages) html += `<button class="page-btn" onclick="loadProducts(${current+1})">Siguiente</button>`;
+    el.innerHTML = html;
+  }
+
+  function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const search = params.get('search');
+    const category = params.get('category');
+    window.history.replaceState({}, '', '/products?' + (search ? 'search='+search+'&' : '') + (category ? 'category='+category : ''));
+    loadProducts(1);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => loadProducts(1));
+</script>
