@@ -9,6 +9,12 @@ Marketplace completo con carrito de compras estilo MercadoLibre.
 - **Base de datos**: PostgreSQL en Neon
 - **Deploy**: Vercel
 
+## URLs en producción
+
+- **Frontend (web)**: https://mercadolibre-copy.vercel.app
+- **Backend (API)**: https://mercadolibre-copy-backend.vercel.app
+- **Swagger API**: https://mercadolibre-copy-backend.vercel.app/swagger/
+
 ## Estructura
 
 ```
