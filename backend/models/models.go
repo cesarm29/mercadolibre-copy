@@ -48,7 +48,7 @@ type Product struct {
 	Description string    `json:"description" gorm:"type:text"`
 	Price       float64   `json:"price" gorm:"not null"`
 	Stock       int       `json:"stock" gorm:"not null;default:0"`
-	Images      []string  `json:"images" gorm:"type:text[]"`
+	Images      StringSlice `json:"images" gorm:"type:text[]"`
 	Condition   string    `json:"condition" gorm:"size:20;not null;default:new"` // new, used
 	Status      string    `json:"status" gorm:"size:20;not null;default:active"` // active, sold, inactive
 	SoldCount   int       `json:"sold_count" gorm:"default:0"`
